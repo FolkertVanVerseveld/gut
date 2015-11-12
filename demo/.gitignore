@@ -1,0 +1,12 @@
+*
+!*.*
+# CC
+*.o
+*.a
+*.so
+# VIM
+*.vim
+*.swp
+# archives
+*.tgz
+*.zip

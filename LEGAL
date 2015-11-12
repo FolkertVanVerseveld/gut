@@ -1,0 +1,15 @@
+# Legal notes
+This library uses the following libraries and specifications:
+
+* Simple Direct media Library version 2.0 (SDL2) by Sam Lantinga et al.
+* Open Graphics Language version (OpenGL) by OpenGL Architecture Review Board (ARB) (formerly) and Khronos Group
+
+## SDL2
+SDL2 is licensed with the zlib license.
+The official description is located [here](http://www.libsdl.org/license.php).
+
+## OpenGL
+OpenGL is custom licensed.
+The official description is located [here](https://www.khronos.org/legal/license/#opengl).
+Quoting their decription as of 2015 november 10:
+> Any developer or company can freely download the available Khronos API Specifications and implement and ship products using the specification completely free of charge, royalty or licensing.

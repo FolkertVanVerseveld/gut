@@ -1,0 +1,15 @@
+# Make
+Makefile
+# CC
+*.o
+*.a
+*.so
+# VIM
+*.vim
+*.swp
+# valgrind
+*.valgrind
+*.log
+# archives
+*.tgz
+*.zip
