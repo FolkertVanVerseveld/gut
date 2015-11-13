@@ -40,6 +40,7 @@ typedef struct gutconf_t {
 		unsigned state;
 	} mold;
 	void (*idle)(unsigned);
+	void (*reshape)(unsigned, unsigned);
 	void (*display)(void);
 	void (*key_down)(unsigned);
 	void (*key_up)(unsigned);
@@ -90,6 +91,7 @@ void gutAudioClose(void);
 
 int gutInit(int *argc, char **argv);
 #define gutIdleFunc(f) gut.idle=f
+#define gutReshapeFunc(f) gut.reshape=f
 #define gutDisplayFunc(f) gut.display=f
 #define gutKeyDownFunc(f) gut.key_down=f
 #define gutKeyUpFunc(f) gut.key_up=f
@@ -162,8 +164,14 @@ unsigned gutShowList(
 
 /* Graphics routines */
 void gutPerspective(GLdouble fovy, GLdouble aspect, GLdouble znear, GLdouble zfar);
+#define getGetFPSLow() gut.stats.fps.low
+#define getGetFPSHigh() gut.stats.fps.high
+#define gutGetFPSNow() gut.stats.fps.now
 
 /* User interface routines */
+bool gutShowCursor(void);
+bool gutHideCursor(void);
+bool gutToggleCursor(void);
 void gutWarpMouse(void);
 
 /* Abort routines */
@@ -183,10 +191,14 @@ bool gutIsErrorp(const char *file, const size_t line, const char *func);
 #define GUT_MIN_TEXTURE_SIZE 2
 #define GUT_MAX_TEXTURE_SIZE 2048
 
+/* Load texture from file specified by name and store in tex.
+Width must be a power of two and equal height.
+You have to call glGenTextures or something similar before passing tex. */
 bool gutLoadTexture(GLuint *tex, const char *name);
-/* Load texture that exactly matches w and h.
+/* Load texture from file that exactly matches w and h and store in tex.
 The texture will be resized to a power of two if it isn't.
-width and/or height get the power of two dimensions (if not NULL). */
+width and/or height get the power of two dimensions (if not NULL).
+You have to call glGenTextures or something similar before passing tex. */
 bool gutLoadTexturePreciseBounds(GLuint *tex, const char *name, GLsizei w, GLsizei h, GLsizei *width, GLsizei *height);
 
 #endif

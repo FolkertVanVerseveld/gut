@@ -87,6 +87,7 @@ int main(int argc, char **argv) {
 	gutIdleFunc(idle);
 	gutKeyDownFunc(downie);
 	gutSetWindowFlags(GUT_FULLSCREEN_DESKTOP | GUT_ESCAPE_AUTO_CLOSE | GUT_BORDERLESS);
+	gutHideCursor();
 	gutCreateWindow("Window modes", DISPLAY_WIDTH, DISPLAY_HEIGHT);
 	init();
 	return gutMainLoop();

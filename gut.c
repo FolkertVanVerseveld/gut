@@ -230,11 +230,18 @@ static void _gut_destroyWindow(SDL_Window **window, SDL_GLContext **context) {
 #define wrap_sdl_call(status,op,msg,func,...) if (!(SDL_##func(__VA_ARGS__) op status)) sdl_error(msg)
 
 static inline void _gut_updatePhysic(SDL_Window *window) {
+	int w, h;
+	w = gut.core->window.physic.w;
+	h = gut.core->window.physic.h;
 	SDL_GetWindowSize(
 		window,
 		&gut.core->window.physic.w,
 		&gut.core->window.physic.h
 	);
+	if (gut.reshape &&
+		(w != gut.core->window.physic.w || h != gut.core->window.physic.h)) {
+		gut.reshape(gut.core->window.physic.w, gut.core->window.physic.h);
+	}
 	if (!(gut.window.flags & GUT_NO_AUTO_VIEWPORT)) {
 		glViewport(
 			0, 0,
@@ -279,22 +286,24 @@ static inline void _gut_setwinpos(GutCore *core) {
 }
 
 // create another window and discard old if success
-static inline bool _gut_setwin(unsigned flags, SDL_Window **window, SDL_GLContext **context) {
+static inline bool _gut_setwin(unsigned flags) {
+	SDL_Window *window;
+	SDL_GLContext *context;
 	unsigned dummy;
 	if (!_gut_initWindow(
 		gut.window.title,
 		gut.window.width,
 		gut.window.height,
 		_gut_flags2sdl(flags, &dummy),
-		window,
-		context))
+		&window,
+		&context))
 		return false;
 	_gut_destroyWindow(
 		&gut.core->window.handle,
 		&gut.core->window.context
 	);
-	gut.core->window.context = *context;
-	gut.core->window.handle  = *window;
+	gut.core->window.context = context;
+	gut.core->window.handle  = window;
 	return true;
 }
 
@@ -318,8 +327,6 @@ bool gutToggleWindowMode(void) {
 }
 
 unsigned gutSetWindowMode(unsigned mode) {
-	SDL_Window *window;
-	SDL_GLContext *context;
 	unsigned flags = gut.window.flags;
 	// get rid of modes
 	flags &= ~(GUT_FULLSCREEN | GUT_FULLSCREEN_DESKTOP);
@@ -341,7 +348,7 @@ unsigned gutSetWindowMode(unsigned mode) {
 				gut.core->window.windowbounds.w,
 				gut.core->window.windowbounds.h
 			);
-		} else if (!_gut_setwin(flags, &window, &context))
+		} else if (!_gut_setwin(flags))
 			goto done;
 		_gut_setwinpos(gut.core);
 		break;
@@ -350,7 +357,7 @@ unsigned gutSetWindowMode(unsigned mode) {
 	case GUT_MODE_FULLSCREEN: {
 		if (mode == GUT_MODE_FULLSCREEN)
 			flags |= GUT_FULLSCREEN;
-		if (!_gut_setwin(flags, &window, &context))
+		if (!_gut_setwin(flags))
 			goto done;
 		break;
 	}
@@ -368,6 +375,20 @@ unsigned gutSetWindowMode(unsigned mode) {
 	gut.core->window.mode = mode;
 done:
 	return gut.core->window.mode;
+}
+
+bool gutShowCursor(void) {
+	return SDL_ShowCursor(1) == 1;
+}
+
+bool gutHideCursor(void) {
+	return SDL_ShowCursor(0) == 0;
+}
+
+bool gutToggleCursor(void) {
+	if (SDL_ShowCursor(-1) == 1)
+		return gutHideCursor();
+	return gutShowCursor();
 }
 
 static inline void _gut_cpycol(SDL_MessageBoxColor *dest, const GutColor *src) {
@@ -662,11 +683,27 @@ int gutMainLoop(void) {
 unsigned gutSetWindowFlags(unsigned flags) {
 	if (flags > GUT_WINDOW_MAX)
 		gut.window.flags &= GUT_WINDOW_MASK;
-	if (gut.core->flags & CTL_SDL_WINDOW) {
-		// TODO change window in real time
-		return gut.window.flags;
-	}
-	gut.window.flags = flags;
+	if (!(gut.core->flags & CTL_SDL_WINDOW))
+		return gut.window.flags = flags;
+	// unmask soft flags
+	unsigned new = gut.window.flags & ~(
+		GUT_ESCAPE_AUTO_CLOSE |
+		GUT_GRAB_INPUT |
+		GUT_NO_AUTO_VIEWPORT
+	);
+	if (flags & GUT_ESCAPE_AUTO_CLOSE)
+		new |= GUT_ESCAPE_AUTO_CLOSE;
+	if (flags & GUT_NO_AUTO_VIEWPORT)
+		new |= GUT_NO_AUTO_VIEWPORT;
+	if (flags & GUT_GRAB_INPUT)
+		new |= GUT_GRAB_INPUT;
+	// set hard flags
+	gut.window.flags = new != flags && _gut_setwin(flags) ? flags : new;
+	// apply remaining
+	SDL_SetWindowGrab(
+		gut.core->window.handle,
+		(flags & GUT_GRAB_INPUT) ? SDL_TRUE : SDL_FALSE
+	);
 	return gut.window.flags;
 }
 
@@ -699,14 +736,21 @@ static unsigned _gut_flags2sdl(unsigned gutflags, unsigned *mode) {
 }
 
 bool gutCreateWindow(const char *title, unsigned width, unsigned height) {
+	if (gut.core->flags & CTL_SDL_WINDOW)
+		goto err;
 	unsigned gutflags = gutGetWindowFlags();
 	unsigned sdlflags, mode;
 	gut.window.title = title;
 	gut.window.width = width;
 	gut.window.height = height;
 	sdlflags = _gut_flags2sdl(gutflags, &mode);
-	if (!_gut_initWindow(title, width, height, sdlflags, &gut.core->window.handle, &gut.core->window.context))
+	if (!_gut_initWindow(
+		title, width, height,
+		sdlflags,
+		&gut.core->window.handle,
+		&gut.core->window.context)) {
 		goto err;
+	}
 	gut.core->window.mode = mode;
 	_gut_savebnds(gut.core);
 	gut.core->flags |= CTL_SDL_WINDOW;
@@ -720,7 +764,10 @@ int gutInit(int *argc, char **argv) {
 	(void)argv;
 	atexit(_gut_stop);
 	wrap_sdl_call(0,==,"init failed", Init, SDL_INIT_VIDEO);
-	wrap_sdl_call(0,==,"double buffering not available", GL_SetAttribute, SDL_GL_DOUBLEBUFFER, 1);
+	wrap_sdl_call(
+		0,==,"double buffering not available",
+		GL_SetAttribute, SDL_GL_DOUBLEBUFFER, 1
+	);
 	gut.core->flags |= CTL_SDL_INIT;
 	int expected = IMG_INIT_PNG | IMG_INIT_JPG;
 	gutSchemeSet(GUT_SCHEME_HAX);
