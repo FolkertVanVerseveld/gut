@@ -195,6 +195,10 @@ bool gutIsErrorp(const char *file, const size_t line, const char *func);
 Width must be a power of two and equal height.
 You have to call glGenTextures or something similar before passing tex. */
 bool gutLoadTexture(GLuint *tex, const char *name);
+/* Load texture from file specified by name and store in tex.
+Width does not have to be a power of two.
+You have to call glGenTextures or something similar before passing tex. */
+bool gutLoadDirtyTexture(GLuint *tex, const char *name);
 /* Load texture from file that exactly matches w and h and store in tex.
 The texture will be resized to a power of two if it isn't.
 width and/or height get the power of two dimensions (if not NULL).

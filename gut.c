@@ -19,7 +19,7 @@
 typedef struct gutcore_t {
 	struct {
 		SDL_Window *handle;
-		SDL_GLContext *context;
+		SDL_GLContext context;
 		SDL_Rect windowbounds;
 		SDL_Rect physic;
 		unsigned fullmode;
@@ -200,15 +200,23 @@ static inline void _gut_savebnds(GutCore *core) {
 	);
 }
 
-static void _gut_destroyWindow(SDL_Window **window, SDL_GLContext **context) {
-	if (*context) {
-		SDL_GL_DeleteContext(*context);
-		*context = NULL;
+static void _gut_destroyContext(SDL_GLContext *context) {
+	if (context) {
+		SDL_GL_DeleteContext(context);
+		context = NULL;
 	}
+}
+
+static void _gut_destroyWindow(SDL_Window **window) {
 	if (*window) {
 		SDL_DestroyWindow(*window);
 		*window = NULL;
 	}
+}
+
+static void _gut_destroy(SDL_Window **window, SDL_GLContext *context) {
+	_gut_destroyContext(context);
+	_gut_destroyWindow(window);
 }
 
 #define fail(msg) do{\
@@ -251,9 +259,10 @@ static inline void _gut_updatePhysic(SDL_Window *window) {
 	}
 }
 
-static bool _gut_initWindow(const char *title, unsigned width, unsigned height, unsigned sdlflags, SDL_Window **window, SDL_GLContext **context) {
+static bool _gut_initWindow(const char *title, unsigned width, unsigned height, unsigned sdlflags, SDL_Window **window, SDL_GLContext *context) {
 	if (!(gut.core->flags & CTL_SDL_INIT))
 		error("GUT not initialised");
+	SDL_GLContext old = SDL_GL_GetCurrentContext();
 	*window = SDL_CreateWindow(
 		title,
 		SDL_WINDOWPOS_UNDEFINED,
@@ -264,16 +273,21 @@ static bool _gut_initWindow(const char *title, unsigned width, unsigned height, 
 	);
 	if (!*window)
 		sdl_error("window could not be created");
-	*context = SDL_GL_CreateContext(*window);
-	if (!*context)
-		sdl_error("context could not be created");
+	if (old) {
+		SDL_GL_MakeCurrent(*window, old);
+		*context = old;
+	} else {
+		context = SDL_GL_CreateContext(*window);
+		if (!context)
+			sdl_error("context could not be created");
+	}
 	wrap_sdl_call(0,==,"vsync not available", GL_SetSwapInterval, 1);
 	_gut_updatePhysic(*window);
 	return true;
 err:
-	_gut_destroyWindow(
+	_gut_destroy(
 		&gut.core->window.handle,
-		&gut.core->window.context
+		gut.core->window.context
 	);
 	return false;
 }
@@ -288,7 +302,7 @@ static inline void _gut_setwinpos(GutCore *core) {
 // create another window and discard old if success
 static inline bool _gut_setwin(unsigned flags) {
 	SDL_Window *window;
-	SDL_GLContext *context;
+	SDL_GLContext context;
 	unsigned dummy;
 	if (!_gut_initWindow(
 		gut.window.title,
@@ -298,10 +312,9 @@ static inline bool _gut_setwin(unsigned flags) {
 		&window,
 		&context))
 		return false;
-	_gut_destroyWindow(
-		&gut.core->window.handle,
-		&gut.core->window.context
-	);
+	_gut_destroyWindow(&gut.core->window.handle);
+	if (context != gut.core->window.context)
+		_gut_destroyContext(gut.core->window.context);
 	gut.core->window.context = context;
 	gut.core->window.handle  = window;
 	return true;
@@ -858,7 +871,7 @@ void _gut_maptex(SDL_Surface *surf, GLuint *tex) {
 		// jpeg *needs* GL_RGB or else we get a segfault
 		// png with GL_RGBA looks fine
 		internal = (!surf->format->Amask || surf->format->BitsPerPixel == 24) ? GL_RGB : GL_RGBA,
-		format = GL_RGB;
+		format = internal;
 	}
 	glTexImage2D(
 		GL_TEXTURE_2D, 0,
@@ -870,21 +883,13 @@ void _gut_maptex(SDL_Surface *surf, GLuint *tex) {
 	SDL_FreeSurface(surf);
 }
 
-bool gutLoadTexture(GLuint *tex, const char *name) {
+static SDL_Surface *_gut_gettex(const char *name) {
 	SDL_Surface *surf = IMG_Load(name);
-	if (!surf) {
-		gut.core->errtype |= GUT_ERR_IMG;
-		++gut.core->errors;
-		gutPerror(__func__);
-		return false;
-	}
-	if (surf->w != surf->h || !_gut_ispow2((unsigned)surf->w)) {
-		++gut.core->errors;
-		fprintf(stderr, "gut: %s: %s\n", "bad texture", "not power of two");
-		return false;
-	}
-	_gut_maptex(surf, tex);
-	return true;
+	if (surf) return surf;
+	gut.core->errtype |= GUT_ERR_IMG;
+	++gut.core->errors;
+	gutPerror(__func__);
+	return NULL;
 }
 
 static inline unsigned _gut_nextpow2(unsigned x) {
@@ -898,6 +903,47 @@ static inline unsigned _gut_nextpow2(unsigned x) {
 	return x;
 }
 
+bool _gut_resizesurf(SDL_Surface **surf, unsigned size);
+
+bool _gut_dirtymap(SDL_Surface **surf) {
+	if ((*surf)->w != (*surf)->h || !_gut_ispow2((unsigned)(*surf)->w)) {
+		unsigned max = (int) ((*surf)->w > (*surf)->h ? (*surf)->w : (*surf)->h);
+		if (max < GUT_MIN_TEXTURE_SIZE)
+			max = GUT_MIN_TEXTURE_SIZE;
+		max = _gut_nextpow2(max);
+		if (max > GUT_MAX_TEXTURE_SIZE) {
+			++gut.core->errors;
+			fprintf(stderr, "gut: %s: %s\n", "bad texture", "too big");
+			return false;
+		}
+		if (!_gut_resizesurf(surf, max)) {
+			++gut.core->errors;
+			fprintf(stderr, "gut: %s: %s\n", "bad texture", "not power of two");
+			return false;
+		}
+	}
+	return true;
+}
+
+bool gutLoadTexture(GLuint *tex, const char *name) {
+	SDL_Surface *surf = _gut_gettex(name);
+	if (!surf) return false;
+	if (surf->w != surf->h || !_gut_ispow2((unsigned)surf->w)) {
+		++gut.core->errors;
+		fprintf(stderr, "gut: %s: %s\n", "bad texture", "not power of two");
+		return false;
+	}
+	_gut_maptex(surf, tex);
+	return true;
+}
+
+bool gutLoadDirtyTexture(GLuint *tex, const char *name) {
+	SDL_Surface *surf = _gut_gettex(name);
+	if (!surf || !_gut_dirtymap(&surf)) return false;
+	_gut_maptex(surf, tex);
+	return true;
+}
+
 bool _gut_resizesurf(SDL_Surface **surf, unsigned size) {
 	SDL_Surface *orig = *surf;
 	SDL_Surface *new = SDL_CreateRGBSurface(
@@ -908,7 +954,6 @@ bool _gut_resizesurf(SDL_Surface **surf, unsigned size) {
 	size_t nrow, orow, nlen, olen;
 	orow = (unsigned)orig->pitch;
 	olen = (unsigned)orig->w * (unsigned)orig->h * orig->format->BytesPerPixel;
-	//printf("row: %zu, length: %zu (%d, %d)\n", orow, olen, orig->w, orig->h);
 	nrow = (unsigned)new->pitch;
 	nlen = (unsigned)new->w * (unsigned)new->h * new->format->BytesPerPixel;
 	//printf("row: %zu, length: %zu (%d, %d)\n", nrow, nlen, orig->w, orig->h);
@@ -928,34 +973,16 @@ bool _gut_resizesurf(SDL_Surface **surf, unsigned size) {
 }
 
 bool gutLoadTexturePreciseBounds(GLuint *tex, const char *name, GLsizei w, GLsizei h, GLsizei *width, GLsizei *height) {
-	SDL_Surface *surf = IMG_Load(name);
-	if (!surf) {
-		gut.core->errtype |= GUT_ERR_IMG;
-		++gut.core->errors;
-		return false;
-	}
+	SDL_Surface *surf = _gut_gettex(name);
+	if (!surf) return false;
 	if (surf->w != w || surf->h != h) {
 		SDL_FreeSurface(surf);
 		++gut.core->errors;
 		fprintf(stderr, "gut: %s: expected dimension %d,%d but got %d,%d\n", "bad texture", w, h, surf->w, surf->h);
 		return false;
 	}
-	if (surf->w != surf->h || !_gut_ispow2((unsigned)surf->w)) {
-		unsigned max = (int) (surf->w > surf->h ? surf->w : surf->h);
-		if (max < GUT_MIN_TEXTURE_SIZE)
-			max = GUT_MIN_TEXTURE_SIZE;
-		max = _gut_nextpow2(max);
-		if (max > GUT_MAX_TEXTURE_SIZE) {
-			++gut.core->errors;
-			fprintf(stderr, "gut: %s: %s\n", "bad texture", "too big");
-			return false;
-		}
-		if (!_gut_resizesurf(&surf, max)) {
-			++gut.core->errors;
-			fprintf(stderr, "gut: %s: %s\n", "bad texture", "not power of two");
-			return false;
-		}
-	}
+	if (!_gut_dirtymap(&surf))
+		return false;
 	_gut_maptex(surf, tex);
 	if (width) *width = surf->w;
 	if (height) *height = surf->h;
