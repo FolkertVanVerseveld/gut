@@ -22,6 +22,17 @@ typedef struct {
 	uint8_t r, g, b;
 } GutColor;
 
+#define GUT_CLIP_SFX 1
+#define GUT_CLIP_LOADED 2
+#define GUT_CLIP_PLAYING 4
+
+typedef struct {
+	void *cookie;
+	char *basename;
+	unsigned nonce;
+	unsigned flags;
+} GutClip;
+
 typedef struct gutconf_t {
 	struct gutcore_t *core;
 	struct {
@@ -126,7 +137,6 @@ fullscreen is slow and evil with multiple monitors attached */
 #define GUT_MODE_FAST_FULLSCREEN 3
 #define GUT_MODE_MAX GUT_MODE_FAST_FULLSCREEN
 
-/* CHANGING MODES LOSES GL CONTEXT */
 unsigned gutSetWindowMode(unsigned mode);
 // Reassign default fullscreen modus and return previous setting
 unsigned gutSetFullscreenMode(unsigned mode);
@@ -198,7 +208,14 @@ bool gutLoadTexture(GLuint *tex, const char *name);
 /* Load texture from file specified by name and store in tex.
 Width does not have to be a power of two.
 You have to call glGenTextures or something similar before passing tex. */
-bool gutLoadDirtyTexture(GLuint *tex, const char *name);
+bool gutLoadTextureDirty(GLuint *tex, const char *name);
+/* Load texture from file specified by name and store in tex.
+The texture will be resized to a power of two if it isn't.
+Original dimensions are stored in width and height.
+New dimension will be stored in resized.
+These pointers may be null pointers.
+You have to call glGenTextures or something similar before passing tex. */
+bool gutLoadTextureResized(GLuint *tex, const char *name, GLsizei *resized, GLsizei *width, GLsizei *height);
 /* Load texture from file that exactly matches w and h and store in tex.
 The texture will be resized to a power of two if it isn't.
 width and/or height get the power of two dimensions (if not NULL).

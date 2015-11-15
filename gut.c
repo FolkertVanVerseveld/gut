@@ -937,9 +937,20 @@ bool gutLoadTexture(GLuint *tex, const char *name) {
 	return true;
 }
 
-bool gutLoadDirtyTexture(GLuint *tex, const char *name) {
+bool gutLoadTextureDirty(GLuint *tex, const char *name) {
 	SDL_Surface *surf = _gut_gettex(name);
 	if (!surf || !_gut_dirtymap(&surf)) return false;
+	_gut_maptex(surf, tex);
+	return true;
+}
+
+bool gutLoadTextureResized(GLuint *tex, const char *name, GLsizei *resized, GLsizei *width, GLsizei *height) {
+	SDL_Surface *surf = _gut_gettex(name);
+	if (!surf) return false;
+	if (width) *width = surf->w;
+	if (height) *height = surf->h;
+	if (!_gut_dirtymap(&surf)) return false;
+	if (resize) *resized = surf->w;
 	_gut_maptex(surf, tex);
 	return true;
 }
