@@ -22,17 +22,6 @@ typedef struct {
 	uint8_t r, g, b;
 } GutColor;
 
-#define GUT_CLIP_SFX 1
-#define GUT_CLIP_LOADED 2
-#define GUT_CLIP_PLAYING 4
-
-typedef struct {
-	void *cookie;
-	char *basename;
-	unsigned nonce;
-	unsigned flags;
-} GutClip;
-
 typedef struct gutconf_t {
 	struct gutcore_t *core;
 	struct {
@@ -99,6 +88,14 @@ int gutAudioSetFormat(int format);
 You have to keep track how many times you have called this function */
 bool gutAudioOpen(int frequency, int channels, int bufsz);
 void gutAudioClose(void);
+bool gutAudioLoad(unsigned *index, const char *name);
+/* Free slot and stop audio sample.
+You don't have to use this unless you really don't need it anymore. */
+bool gutAudioFree(unsigned index);
+/* Play audio sample index on channel specified number of loops.
+Use channel=-1 to choose a free channel.
+Use loop=-1 to loop indefinitely. */
+bool gutAudioPlay(unsigned index, int channel, int loops);
 
 int gutInit(int *argc, char **argv);
 #define gutIdleFunc(f) gut.idle=f

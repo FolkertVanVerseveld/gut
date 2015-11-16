@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <math.h>
 #include <SDL2/SDL.h>
@@ -15,6 +16,15 @@
 #define CTL_SDL_WINDOW 2
 #define CTL_IMG_INIT 4
 #define CTL_MIX_INIT 8
+
+#define CLIP_SFX 1
+#define CLIP_LOADED 2
+
+typedef struct {
+	void *cookie;
+	int channel;
+	unsigned flags;
+} GutClip;
 
 typedef struct gutcore_t {
 	struct {
@@ -42,6 +52,9 @@ typedef struct gutcore_t {
 	} stats;
 	struct {
 		int format;
+		uint8_t max, rpos;
+		uint8_t pop[UINT8_MAX];
+		GutClip list[UINT8_MAX];
 	} audio;
 } GutCore;
 
@@ -950,7 +963,7 @@ bool gutLoadTextureResized(GLuint *tex, const char *name, GLsizei *resized, GLsi
 	if (width) *width = surf->w;
 	if (height) *height = surf->h;
 	if (!_gut_dirtymap(&surf)) return false;
-	if (resize) *resized = surf->w;
+	if (resized) *resized = surf->w;
 	_gut_maptex(surf, tex);
 	return true;
 }
@@ -1026,12 +1039,75 @@ int gutAudioSetFormat(int format) {
 }
 
 bool gutAudioOpen(int frequency, int channels, int bufsz) {
-	if (!(gut.core->flags & CTL_MIX_INIT))
+	if (!(gut.core->flags & CTL_MIX_INIT)) {
+		puts("no mix");
 		return false;
-	return Mix_OpenAudio(frequency, MIX_DEFAULT_FORMAT, channels, bufsz) != 0;
+	}
+	return Mix_OpenAudio(frequency, MIX_DEFAULT_FORMAT, channels, bufsz) == 0;
 }
 
 void gutAudioClose(void) {
 	if (gut.core->flags & CTL_MIX_INIT)
 		Mix_CloseAudio();
+}
+
+bool gutAudioLoad(unsigned *index, const char *name) {
+	void *blk = NULL;
+	bool good = false;
+	uint8_t p = gut.core->audio.max;
+	if (!index) goto err;
+	if (gut.core->audio.max == UINT8_MAX) {
+		fputs("gut: audio cache is full\n", stderr);
+		goto err;
+	}
+	blk = Mix_LoadWAV(name);
+	if (!blk) goto err;
+	if (gut.core->audio.rpos)
+		p = gut.core->audio.pop[--gut.core->audio.rpos];
+	else
+		++gut.core->audio.max;
+	GutClip *clip = &gut.core->audio.list[p];
+	clip->cookie = blk;
+	clip->flags = CLIP_SFX | CLIP_LOADED;
+	good = true;
+err:
+	if (!good) {
+		if (blk) free(blk);
+	}
+	return good;
+}
+
+bool _gut_chksfx(GutClip **clip, unsigned index) {
+	if (index > gut.core->audio.max)
+		return false;
+	*clip = &gut.core->audio.list[index];
+	if (!((*clip)->flags & CLIP_LOADED))
+		return false;
+	return true;
+}
+
+bool gutAudioFree(unsigned index) {
+	GutClip *clip;
+	if (!_gut_chksfx(&clip, index))
+		return false;
+	if (Mix_Playing(clip->channel))
+		Mix_HaltChannel(clip->channel);
+	if (clip->flags & CLIP_SFX) {
+		Mix_FreeChunk(clip->cookie);
+		clip->flags &= ~CLIP_SFX;
+	}
+	clip->flags &= ~CLIP_LOADED;
+	gut.core->audio.pop[gut.core->audio.rpos++] = index;
+	return true;
+}
+
+bool gutAudioPlay(unsigned index, int channel, int loops) {
+	GutClip *clip;
+	if (!_gut_chksfx(&clip, index))
+		return false;
+	int ch = Mix_PlayChannel(channel, clip->cookie, loops);
+	if (ch == -1)
+		return false;
+	clip->channel = ch;
+	return true;
 }
