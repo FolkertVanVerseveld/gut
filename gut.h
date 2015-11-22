@@ -22,6 +22,12 @@ typedef struct {
 	uint8_t r, g, b;
 } GutColor;
 
+/* Configuration settings for current state.
+This is only for reference information.
+You should not modify these directly,
+as these members may change over time.
+Critical information is not kept here anyway,
+so it is not a big deal if you change them. */
 typedef struct gutconf_t {
 	struct gutcore_t *core;
 	struct {
@@ -118,8 +124,9 @@ void gutExit(int status) __attribute__ ((noreturn));
 #define GUT_GRAB_INPUT 256
 #define GUT_ALLOW_HIGHDPI 512
 #define GUT_NO_AUTO_VIEWPORT 1024
+#define GUT_NO_VSYNC 2048
 #define GUT_WINDOW_MASK ((GUT_WINDOW_MAX - 1) | GUT_WINDOW_MAX)
-#define GUT_WINDOW_MAX GUT_NO_AUTO_VIEWPORT
+#define GUT_WINDOW_MAX GUT_NO_VSYNC
 
 #define gutGetWindowFlags() gut.window.flags
 unsigned gutSetWindowFlags(unsigned flags);
@@ -134,6 +141,21 @@ fullscreen is slow and evil with multiple monitors attached */
 #define GUT_MODE_FAST_FULLSCREEN 3
 #define GUT_MODE_MAX GUT_MODE_FAST_FULLSCREEN
 
+/* Query window or display properties.
+You must create a window first before you can use these. */
+bool gutGetDisplayCount(unsigned *count);
+bool gutGetDisplayBounds(unsigned index, unsigned *width, unsigned *height);
+bool gutGetDisplayIndex(unsigned *index);
+bool gutGetWindowPosition(unsigned *x, unsigned *y);
+bool gutGetWindowSize(unsigned *width, unsigned *height);
+bool gutGetWindowBounds(unsigned *x, unsigned *y, unsigned *width, unsigned *height);
+bool gutSetWindowPosition(unsigned x, unsigned y);
+bool gutSetWindowSize(unsigned width, unsigned height);
+bool gutSetWindowBounds(unsigned x, unsigned y, unsigned width, unsigned height);
+bool gutCenterWindow(void);
+/* Change window mode and return mode that has been set.
+If it is the different from the requested mode,
+the window mode could not be changed or is unavailable */
 unsigned gutSetWindowMode(unsigned mode);
 // Reassign default fullscreen modus and return previous setting
 unsigned gutSetFullscreenMode(unsigned mode);

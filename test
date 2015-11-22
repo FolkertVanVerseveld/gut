@@ -1,0 +1,6 @@
+#!/bin/bash
+sh build.sh
+make
+cd demo
+for i in *; do if [ -x $i ]; then ./$i; fi; done
+cd ..

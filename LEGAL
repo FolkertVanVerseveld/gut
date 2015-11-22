@@ -4,6 +4,10 @@ This library uses the following libraries and specifications:
 * Simple Direct media Library version 2.0 (SDL2) by Sam Lantinga et al.
 * Open Graphics Language version (OpenGL) by OpenGL Architecture Review Board (ARB) (formerly) and Khronos Group
 
+Some demo's in this library use game art.
+The resources are copyrighted by their respective owners.
+See demo/_name_.license for legal information about a particular resource.
+
 ## SDL2
 SDL2 is licensed with the zlib license.
 The official description is located [here](http://www.libsdl.org/license.php).

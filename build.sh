@@ -1,9 +1,7 @@
 #!/bin/bash
-
+set -e
 CC=gcc
-if [ -x `which colorgcc 2>/dev/null` ]; then
-	CC=colorgcc
-fi
+hash colorgcc 2>/dev/null && { CC=colorgcc; }
 CFLAGS="-Wall -Wextra -pedantic -std=gnu99 -fPIC -g `pkg-config --cflags sdl2 gl` -I. -lSDL2_image -lSDL2_mixer -lm"
 LDLIBS="`pkg-config --libs sdl2 gl` -lSDL2_image -lSDL2_mixer -lm"
 

@@ -34,6 +34,7 @@ typedef struct gutcore_t {
 		SDL_Rect physic;
 		unsigned fullmode;
 		unsigned mode;
+		unsigned display;
 	} window;
 	unsigned flags;
 	unsigned errors;
@@ -161,11 +162,112 @@ void gutShowError(const char *title, const char *message) {
 	++gut.core->errors;
 }
 
-static inline void _gut_getbnds(SDL_Rect *bounds) {
-	SDL_GetDisplayBounds(
-		SDL_GetWindowDisplayIndex(gut.core->window.handle),
-		bounds
+#define haswin() (gut.core->flags & CTL_SDL_WINDOW)
+#define chkwin if(!haswin())return false
+
+bool gutGetDisplayIndex(unsigned *display) {
+	chkwin;
+	int i;
+	i = SDL_GetWindowDisplayIndex(gut.core->window.handle);
+	if (i < 0) return false;
+	gut.core->window.display = (unsigned) i;
+	*display = (unsigned) i;
+	return true;
+}
+
+static inline bool _gut_getbnds(SDL_Rect *bounds) {
+	unsigned display;
+	return gutGetDisplayIndex(&display) &&
+		SDL_GetDisplayBounds(display, bounds) == 0;
+}
+
+bool gutGetDisplayCount(unsigned *count) {
+	chkwin;
+	int n = SDL_GetNumVideoDisplays();
+	if (n < 1) return false;
+	*count = n;
+	return true;
+}
+
+bool gutGetDisplayBounds(unsigned index, unsigned *width, unsigned *height) {
+	chkwin;
+	SDL_Rect bnds;
+	if (SDL_GetDisplayBounds((int) index, &bnds) == 0)
+		return false;
+	if (bnds.w < 0 || bnds.h < 0)
+		return false;
+	if (width) *width = bnds.w;
+	if (height) *height = bnds.h;
+	return true;
+}
+
+bool gutGetWindowPosition(unsigned *x, unsigned *y) {
+	chkwin;
+	int xp, yp;
+	SDL_GetWindowPosition(
+		gut.core->window.handle,
+		&xp, &yp
 	);
+	if (xp < 0 || yp < 0)
+		return false;
+	if (x) *x = xp;
+	if (y) *y = yp;
+	return true;
+}
+
+bool gutGetWindowSize(unsigned *width, unsigned *height) {
+	chkwin;
+	int w, h;
+	SDL_GetWindowSize(
+		gut.core->window.handle,
+		&w, &h
+	);
+	if (w < 0 || h < 0)
+		return false;
+	if (width) *width = w;
+	if (height) *height = h;
+	return true;
+}
+
+bool gutGetWindowBounds(unsigned *x, unsigned *y, unsigned *w, unsigned *h) {
+	chkwin;
+	unsigned xp, yp, wp, hp;
+	if (!gutGetWindowSize(&wp ,&hp))
+		return false;
+	if (!gutGetWindowPosition(&xp, &yp))
+		return false;
+	if (x) *x = xp;
+	if (y) *y = yp;
+	if (w) *w = wp;
+	if (h) *h = hp;
+	return true;
+}
+
+bool gutSetWindowPosition(unsigned x, unsigned y) {
+	chkwin;
+	SDL_SetWindowPosition(gut.core->window.handle, x, y);
+	return true;
+}
+
+bool gutSetWindowSize(unsigned w, unsigned h) {
+	chkwin;
+	/* prevent division by zero
+	only checking for height should be sufficient,
+	but width == 0 would be pointless anyway */
+	if (w < 1 || h < 1)
+		return false;
+	SDL_SetWindowSize(gut.core->window.handle, w, h);
+	return true;
+}
+
+bool gutCenterWindow(void) {
+	chkwin;
+	SDL_SetWindowPosition(
+		gut.core->window.handle,
+		SDL_WINDOWPOS_CENTERED,
+		SDL_WINDOWPOS_CENTERED
+	);
+	return true;
 }
 
 static inline void _gut_setfps(GutCore *core) {
@@ -180,17 +282,19 @@ static inline void _gut_setfps(GutCore *core) {
 		core->stats.fps.low =
 		core->stats.fps.high = core->stats.fps.now;
 	}
+	// check if we have got a new record
 	if (core->stats.fps.now < core->stats.fps.low)
 		core->stats.fps.low = core->stats.fps.now;
 	if (core->stats.fps.now > core->stats.fps.high)
-		core->stats.fps.high = core->stats.fps.high;
+		core->stats.fps.high = core->stats.fps.now;
 }
 
-static inline void _gut_savebnds(GutCore *core) {
+static inline bool _gut_savebnds(GutCore *core) {
 	if (gut.core->window.mode != GUT_MODE_WINDOWED) {
 		// bounds undefined, use desktop bounds
 		SDL_Rect bounds;
-		_gut_getbnds(&bounds);
+		if (!_gut_getbnds(&bounds))
+			return false;
 		int x, y;
 		x = (bounds.w - gut.window.width) / 2;
 		if (x < 0) x = 0;
@@ -200,7 +304,7 @@ static inline void _gut_savebnds(GutCore *core) {
 		core->window.windowbounds.y = y;
 		core->window.windowbounds.w = gut.window.width;
 		core->window.windowbounds.h = gut.window.height;
-		return;
+		return true;
 	}
 	// recycle old bounds
 	SDL_GetWindowPosition(
@@ -211,6 +315,7 @@ static inline void _gut_savebnds(GutCore *core) {
 		core->window.handle,
 		&core->window.windowbounds.w, &core->window.windowbounds.h
 	);
+	return true;
 }
 
 static void _gut_destroyContext(SDL_GLContext *context) {
@@ -294,7 +399,9 @@ static bool _gut_initWindow(const char *title, unsigned width, unsigned height, 
 		if (!context)
 			sdl_error("context could not be created");
 	}
-	wrap_sdl_call(0,==,"vsync not available", GL_SetSwapInterval, 1);
+	if (!(gut.window.flags & GUT_NO_VSYNC)) {
+		wrap_sdl_call(0,==,"vsync not available", GL_SetSwapInterval, 1);
+	}
 	_gut_updatePhysic(*window);
 	return true;
 err:
@@ -356,10 +463,10 @@ unsigned gutSetWindowMode(unsigned mode) {
 	unsigned flags = gut.window.flags;
 	// get rid of modes
 	flags &= ~(GUT_FULLSCREEN | GUT_FULLSCREEN_DESKTOP);
-	if (mode > GUT_MODE_MAX || !(gut.core->flags & CTL_SDL_WINDOW))
+	if (mode > GUT_MODE_MAX || !haswin())
 		goto done;
-	if (gut.core->window.mode == GUT_MODE_WINDOWED)
-		_gut_savebnds(gut.core);
+	if (gut.core->window.mode == GUT_MODE_WINDOWED && !_gut_savebnds(gut.core))
+		goto done;
 	switch (mode) {
 	case GUT_MODE_WINDOWED:
 		if (gut.core->window.mode == GUT_MODE_FAST_FULLSCREEN) {
@@ -715,7 +822,8 @@ unsigned gutSetWindowFlags(unsigned flags) {
 	unsigned new = gut.window.flags & ~(
 		GUT_ESCAPE_AUTO_CLOSE |
 		GUT_GRAB_INPUT |
-		GUT_NO_AUTO_VIEWPORT
+		GUT_NO_AUTO_VIEWPORT |
+		GUT_NO_VSYNC
 	);
 	if (flags & GUT_ESCAPE_AUTO_CLOSE)
 		new |= GUT_ESCAPE_AUTO_CLOSE;
@@ -723,6 +831,14 @@ unsigned gutSetWindowFlags(unsigned flags) {
 		new |= GUT_NO_AUTO_VIEWPORT;
 	if (flags & GUT_GRAB_INPUT)
 		new |= GUT_GRAB_INPUT;
+	if (flags & GUT_NO_VSYNC)
+		new |= GUT_NO_VSYNC;
+	if ((gut.core->flags & new & GUT_NO_VSYNC) == 0) {
+		int mode = new & GUT_NO_VSYNC ? 0 : 1;
+		SDL_GL_SetSwapInterval(mode);
+		if (SDL_GL_GetSwapInterval() != mode)
+			sdl_error("swap interval");
+	}
 	// set hard flags
 	gut.window.flags = new != flags && _gut_setwin(flags) ? flags : new;
 	// apply remaining
@@ -730,6 +846,7 @@ unsigned gutSetWindowFlags(unsigned flags) {
 		gut.core->window.handle,
 		(flags & GUT_GRAB_INPUT) ? SDL_TRUE : SDL_FALSE
 	);
+err:
 	return gut.window.flags;
 }
 
@@ -778,7 +895,8 @@ bool gutCreateWindow(const char *title, unsigned width, unsigned height) {
 		goto err;
 	}
 	gut.core->window.mode = mode;
-	_gut_savebnds(gut.core);
+	// ignore whether bounds were saved correctly
+	(void)_gut_savebnds(gut.core);
 	gut.core->flags |= CTL_SDL_WINDOW;
 	return true;
 err:
@@ -980,7 +1098,6 @@ bool _gut_resizesurf(SDL_Surface **surf, unsigned size) {
 	olen = (unsigned)orig->w * (unsigned)orig->h * orig->format->BytesPerPixel;
 	nrow = (unsigned)new->pitch;
 	nlen = (unsigned)new->w * (unsigned)new->h * new->format->BytesPerPixel;
-	//printf("row: %zu, length: %zu (%d, %d)\n", nrow, nlen, orig->w, orig->h);
 	SDL_LockSurface(orig);
 	SDL_LockSurface(new);
 	// clear new pixel data
@@ -1017,8 +1134,14 @@ int gutAudioSetFormat(int format) {
 	int flags = 0, got;
 	if (gut.core->flags & CTL_MIX_INIT)
 		return gut.core->audio.format;
-	if (gut.core->audio.format == format)
+	if (gut.core->audio.format == format) {
+		if (!format) {
+			got = Mix_Init(0);
+			gut.core->flags |= CTL_MIX_INIT;
+			return got;
+		}
 		return format;
+	}
 	if (format & GUT_AUDIO_FLAC) flags |= MIX_INIT_FLAC;
 	if (format & GUT_AUDIO_MOD ) flags |= MIX_INIT_MOD;
 	if (format & GUT_AUDIO_MP3 ) flags |= MIX_INIT_MP3;

@@ -33,7 +33,7 @@ void display(void) {
 }
 
 void init(void) {
-	gutAudioSetFormat(GUT_AUDIO_OGG);
+	gutAudioSetFormat(0);
 	if (!gutAudioOpen(11025, 1, 1024))
 		gutPanic("No audio", "Could not initialise audio");
 	if (!gutAudioLoad(&demo.jump, "jumpland.wav"))
