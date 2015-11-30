@@ -152,6 +152,8 @@ bool gutGetWindowBounds(unsigned *x, unsigned *y, unsigned *width, unsigned *hei
 bool gutSetWindowPosition(unsigned x, unsigned y);
 bool gutSetWindowSize(unsigned width, unsigned height);
 bool gutSetWindowBounds(unsigned x, unsigned y, unsigned width, unsigned height);
+bool gutSetWindowTitle(const char *title);
+bool gutSetWindowIcon(const char *path);
 bool gutCenterWindow(void);
 /* Change window mode and return mode that has been set.
 If it is the different from the requested mode,

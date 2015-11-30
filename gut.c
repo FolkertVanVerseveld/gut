@@ -32,6 +32,7 @@ typedef struct gutcore_t {
 		SDL_GLContext context;
 		SDL_Rect windowbounds;
 		SDL_Rect physic;
+		SDL_Surface *icon;
 		unsigned fullmode;
 		unsigned mode;
 		unsigned display;
@@ -257,6 +258,15 @@ bool gutSetWindowSize(unsigned w, unsigned h) {
 	if (w < 1 || h < 1)
 		return false;
 	SDL_SetWindowSize(gut.core->window.handle, w, h);
+	gut.window.width = w;
+	gut.window.height = h;
+	return true;
+}
+
+bool gutSetWindowTitle(const char *title) {
+	if (!(gut.core->flags & CTL_SDL_WINDOW))
+		return false;
+	SDL_SetWindowTitle(gut.core->window.handle, title);
 	return true;
 }
 
@@ -348,10 +358,29 @@ static void _gut_destroy(SDL_Window **window, SDL_GLContext *context) {
 	fail(msg);\
 	}while(0)
 
+#define img_error(msg) do{\
+	gut.core->errtype|=GUT_ERR_IMG;\
+	fail(msg);\
+	}while(0)
+
 #define sdl_error(msg) do{\
 	gut.core->errtype|=GUT_ERR_SDL;\
 	fail(msg);\
 	}while(0)
+
+bool gutSetWindowIcon(const char *path) {
+	bool good = false;
+	if (!(gut.core->flags & CTL_SDL_INIT))
+		return false;
+	SDL_Surface *icon = IMG_Load(path);
+	if (!icon) img_error("invalid icon");
+	gut.core->window.icon = icon;
+	if (gut.core->flags & CTL_SDL_WINDOW)
+		SDL_SetWindowIcon(gut.core->window.handle, icon);
+	good = true;
+err:
+	return good;
+}
 
 #define wrap_sdl_call(status,op,msg,func,...) if (!(SDL_##func(__VA_ARGS__) op status)) sdl_error(msg)
 
@@ -399,6 +428,8 @@ static bool _gut_initWindow(const char *title, unsigned width, unsigned height, 
 		if (!context)
 			sdl_error("context could not be created");
 	}
+	if (gut.core->window.icon)
+		SDL_SetWindowIcon(*window, gut.core->window.icon);
 	if (!(gut.window.flags & GUT_NO_VSYNC)) {
 		wrap_sdl_call(0,==,"vsync not available", GL_SetSwapInterval, 1);
 	}
