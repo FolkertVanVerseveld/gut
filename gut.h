@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <GL/gl.h>
+#include "sfx.h"
+#include "tex.h"
 
 struct gutcore_t;
 
@@ -82,26 +84,6 @@ typedef enum {
 } GutShowType;
 
 /* Initialisation/Shutdown routines */
-
-#define GUT_AUDIO_FLAC 1
-#define GUT_AUDIO_MOD 2
-#define GUT_AUDIO_MP3 4
-#define GUT_AUDIO_OGG 8
-
-/* Try to set format and return chosen format */
-int gutAudioSetFormat(int format);
-/* Open audio playback device.
-You have to keep track how many times you have called this function */
-bool gutAudioOpen(int frequency, int channels, int bufsz);
-void gutAudioClose(void);
-bool gutAudioLoad(unsigned *index, const char *name);
-/* Free slot and stop audio sample.
-You don't have to use this unless you really don't need it anymore. */
-bool gutAudioFree(unsigned index);
-/* Play audio sample index on channel specified number of loops.
-Use channel=-1 to choose a free channel.
-Use loop=-1 to loop indefinitely. */
-bool gutAudioPlay(unsigned index, int channel, int loops);
 
 int gutInit(int *argc, char **argv);
 #define gutIdleFunc(f) gut.idle=f
@@ -216,31 +198,5 @@ void gutAssertMessage(int expr, const char *title, const char *message);
 it just calls gutIsErrorp which will also print the current location */
 #define gutIsError() gutIsErrorp(__FILE__,__LINE__,__func__)
 bool gutIsErrorp(const char *file, const size_t line, const char *func);
-
-/* Texture routines */
-
-#define GUT_MIN_TEXTURE_SIZE 2
-#define GUT_MAX_TEXTURE_SIZE 2048
-
-/* Load texture from file specified by name and store in tex.
-Width must be a power of two and equal height.
-You have to call glGenTextures or something similar before passing tex. */
-bool gutLoadTexture(GLuint *tex, const char *name);
-/* Load texture from file specified by name and store in tex.
-Width does not have to be a power of two.
-You have to call glGenTextures or something similar before passing tex. */
-bool gutLoadTextureDirty(GLuint *tex, const char *name);
-/* Load texture from file specified by name and store in tex.
-The texture will be resized to a power of two if it isn't.
-Original dimensions are stored in width and height.
-New dimension will be stored in resized.
-These pointers may be null pointers.
-You have to call glGenTextures or something similar before passing tex. */
-bool gutLoadTextureResized(GLuint *tex, const char *name, GLsizei *resized, GLsizei *width, GLsizei *height);
-/* Load texture from file that exactly matches w and h and store in tex.
-The texture will be resized to a power of two if it isn't.
-width and/or height get the power of two dimensions (if not NULL).
-You have to call glGenTextures or something similar before passing tex. */
-bool gutLoadTexturePreciseBounds(GLuint *tex, const char *name, GLsizei w, GLsizei h, GLsizei *width, GLsizei *height);
 
 #endif

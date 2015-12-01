@@ -12,10 +12,14 @@ CC=$CC
 CFLAGS=$CFLAGS
 LDLIBS=$LDLIBS
 
-OBJECTS= gut.o
 EOF
 
-printf "DEMOS=" >>Makefile
+printf "OBJECTS=" >>Makefile
+for i in *.c; do
+	printf " \\\\\n\t%s" `echo $i | sed -e 's/\.c$/\.o/'` >>Makefile
+done
+
+printf "\nDEMOS=" >>Makefile
 REFFILES=`cd demo && find . -name '*.c'`
 for i in $REFFILES; do
 	printf " \\\\\n\tdemo/%s" `echo $i | cut -c3- | sed -e 's/\.c$//'` >>Makefile
