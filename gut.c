@@ -4,6 +4,7 @@
 #include <math.h>
 #include "_gut.h"
 #include "gut.h"
+#include <SDL2/SDL_keycode.h>
 
 GutCore _gut_core = {
 	.window = {
@@ -654,6 +655,11 @@ static unsigned _gut_wrapkbp(SDL_Event *ev) {
 	mod = ev->key.keysym.mod;
 	key = ev->key.keysym.sym;
 	/* arrow keys */
+	#define SDL_KEYCODE_TO_SCANCODE(x) ((x) & ~(SDLK_SCANCODE_MASK))
+	if (key >= SDLK_F1 && key <= SDLK_F12)
+		return SDL_KEYCODE_TO_SCANCODE(key) - SDL_SCANCODE_F1 + GUT_KEY_F1;
+	if (key >= SDLK_F13 && key <= SDLK_F24)
+		return SDL_KEYCODE_TO_SCANCODE(key) - SDL_SCANCODE_F13 + GUT_KEY_F(13);
 	switch (key) {
 	case SDLK_RIGHT: return GUT_KEY_RIGHT;
 	case SDLK_UP: return GUT_KEY_UP;
@@ -664,7 +670,7 @@ static unsigned _gut_wrapkbp(SDL_Event *ev) {
 		gut.running = false;
 		return 0;
 	}
-	if (mod & (KMOD_LSHIFT | KMOD_RSHIFT)) {
+	if (mod & KMOD_SHIFT) {
 		unsigned char numup[] = {")!@#$%^&*("};
 		unsigned mkey = key & 0xff;
 		if (isprint(mkey)) {
@@ -689,6 +695,8 @@ static unsigned _gut_wrapkbp(SDL_Event *ev) {
 			}
 		}
 	}
+	if ((key <= 0xff && !isprint(key)) && (mod & (KMOD_CTRL | KMOD_ALT)))
+		return 1;
 	return key;
 }
 
@@ -715,13 +723,13 @@ int gutMainLoop(void) {
 			case SDL_KEYDOWN:
 				wrap = _gut_wrapkbp(&ev);
 				if (!wrap) goto quit;
-				if (gut.key_down)
+				if (wrap != 1 && gut.key_down)
 					gut.key_down(wrap);
 				break;
 			case SDL_KEYUP:
 				wrap = _gut_wrapkbp(&ev);
 				if (!wrap) goto quit;
-				if (gut.key_up)
+				if (wrap != 1 && gut.key_up)
 					gut.key_up(wrap);
 				break;
 			case SDL_QUIT:

@@ -18,6 +18,9 @@ struct gutcore_t;
 #define GUT_KEY_LEFT 0x1002
 #define GUT_KEY_DOWN 0x1003
 
+#define GUT_KEY_F1 0x1004
+#define GUT_KEY_F(x) (GUT_KEY_F1+(x)-1)
+
 #define GUT_IS_ARROW_KEY(key) ((key)>=GUT_KEY_RIGHT&&(key)<=GUT_KEY_DOWN)
 
 typedef struct {
