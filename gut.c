@@ -82,6 +82,12 @@ void gutExit(int status) {
 	exit(status);
 }
 
+unsigned gutSleep(unsigned ms) {
+	Uint32 t = SDL_GetTicks();
+	SDL_Delay(ms);
+	return SDL_GetTicks() - t;
+}
+
 static unsigned _gut_flags2sdl(unsigned gutflags, unsigned *mode);
 
 #define MSGBTNSZ (sizeof(_gut_msgbtn)/sizeof(_gut_msgbtn[0]))

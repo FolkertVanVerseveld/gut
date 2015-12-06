@@ -98,6 +98,11 @@ int gutInit(int *argc, char **argv);
 #define gutButtonFunc(f) gut.mouse=f
 void gutExit(int status) __attribute__ ((noreturn));
 
+/* Try to sleep for specified milliseconds.
+It returns the number of elapsed milliseconds.
+Very small amounts (<15) are not reliable on many non-linux OS'es! */
+unsigned gutSleep(unsigned ms);
+
 #define GUT_ESCAPE_AUTO_CLOSE 1
 #define GUT_FULLSCREEN 2
 #define GUT_FULLSCREEN_DESKTOP 4
