@@ -22,7 +22,7 @@ void display(void) {
 
 void init(void) {
 	glGenTextures(1, &tex);
-	if (!gutLoadTexture(&tex, "vim.png"))
+	if (!gutLoadTexture(tex, "vim.png"))
 		gutPanic("Missing resources", "Could not find vim.png");
 }
 

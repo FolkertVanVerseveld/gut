@@ -1,4 +1,5 @@
-#include "_gut.h"
+#include "tex.h"
+#include "_tex.h"
 #include "gut.h"
 
 #define PALSZ 256
@@ -23,10 +24,10 @@ static inline bool _gut_ispow2(unsigned x) {
 	return x && !(x & (x - 1));
 }
 
-void _gut_maptex(SDL_Surface *surf, GLuint *tex) {
+void _gut_maptex(SDL_Surface *surf, GLuint tex) {
 	GLint internal;
 	GLenum format;
-	glBindTexture(GL_TEXTURE_2D, *tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
 	if (surf->format->palette) {
 		_gut_set_palette(surf);
 		internal = GL_RGBA;
@@ -78,18 +79,20 @@ bool _gut_dirtymap(SDL_Surface **surf) {
 		if (max > GUT_MAX_TEXTURE_SIZE) {
 			++gut.core->errors;
 			fprintf(stderr, "gut: %s: %s\n", "bad texture", "too big");
+			SDL_FreeSurface(*surf);
 			return false;
 		}
 		if (!_gut_resizesurf(surf, max)) {
 			++gut.core->errors;
 			fprintf(stderr, "gut: %s: %s\n", "bad texture", "not power of two");
+			SDL_FreeSurface(*surf);
 			return false;
 		}
 	}
 	return true;
 }
 
-bool gutLoadTexture(GLuint *tex, const char *name) {
+bool gutLoadTexture(GLuint tex, const char *name) {
 	SDL_Surface *surf = _gut_gettex(name);
 	if (!surf) return false;
 	if (surf->w != surf->h || !_gut_ispow2((unsigned)surf->w)) {
@@ -101,14 +104,14 @@ bool gutLoadTexture(GLuint *tex, const char *name) {
 	return true;
 }
 
-bool gutLoadTextureDirty(GLuint *tex, const char *name) {
+bool gutLoadTextureDirty(GLuint tex, const char *name) {
 	SDL_Surface *surf = _gut_gettex(name);
 	if (!surf || !_gut_dirtymap(&surf)) return false;
 	_gut_maptex(surf, tex);
 	return true;
 }
 
-bool gutLoadTextureResized(GLuint *tex, const char *name, GLsizei *resized, GLsizei *width, GLsizei *height) {
+bool gutLoadTextureResized(GLuint tex, const char *name, GLsizei *resized, GLsizei *width, GLsizei *height) {
 	SDL_Surface *surf = _gut_gettex(name);
 	if (!surf) return false;
 	if (width) *width = surf->w;
@@ -146,7 +149,7 @@ bool _gut_resizesurf(SDL_Surface **surf, unsigned size) {
 	return true;
 }
 
-bool gutLoadTexturePreciseBounds(GLuint *tex, const char *name, GLsizei w, GLsizei h, GLsizei *width, GLsizei *height) {
+bool gutLoadTexturePreciseBounds(GLuint tex, const char *name, GLsizei w, GLsizei h, GLsizei *width, GLsizei *height) {
 	SDL_Surface *surf = _gut_gettex(name);
 	if (!surf) return false;
 	if (surf->w != w || surf->h != h) {

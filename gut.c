@@ -218,7 +218,10 @@ bool gutSetWindowSize(unsigned w, unsigned h) {
 bool gutSetWindowTitle(const char *title) {
 	if (!(gut.core->flags & CTL_SDL_WINDOW))
 		return false;
-	SDL_SetWindowTitle(gut.core->window.handle, title);
+	SDL_SetWindowTitle(
+		gut.core->window.handle,
+		gut.window.title = title
+	);
 	return true;
 }
 
@@ -609,6 +612,13 @@ static void _gut_stop_mix(GutCore *core) {
 	core->flags &= ~CTL_MIX_INIT;
 }
 
+static void _gut_stop_ttf(GutCore *core) {
+	if (!(core->flags & CTL_TTF_INIT))
+		return;
+	TTF_Quit();
+	core->flags &= ~CTL_TTF_INIT;
+}
+
 static void _gut_stop_img(GutCore *core) {
 	if (!(core->flags & CTL_IMG_INIT))
 		return;
@@ -635,6 +645,7 @@ static void _gut_stop_sdl(GutCore *core) {
 
 static void _gut_stop(void) {
 	GutCore *core = gut.core;
+	_gut_stop_ttf(core);
 	_gut_stop_mix(core);
 	_gut_stop_img(core);
 	_gut_stop_sdl(core);
@@ -643,6 +654,8 @@ static void _gut_stop(void) {
 void gutPerror(const char *message) {
 	// determine type
 	unsigned type = gut.core->errtype;
+	if (type & GUT_ERR_TTF)
+		fprintf(stderr, "ttf: %s: %s\n", message, TTF_GetError());
 	if (type & GUT_ERR_MIX)
 		fprintf(stderr, "mix: %s: %s\n", message, Mix_GetError());
 	if (type & GUT_ERR_IMG)
@@ -912,6 +925,12 @@ int gutInit(int *argc, char **argv) {
 		goto err;
 	}
 	gut.core->flags |= CTL_IMG_INIT;
+	if (TTF_Init() != 0) {
+		gut.core->errtype |= GUT_ERR_TTF;
+		++gut.core->errors;
+		gutPerror("init failed");
+		goto err;
+	}
 	return 0;
 err:
 	fputs("gut: init failed\n", stderr);

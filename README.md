@@ -3,11 +3,13 @@ by Folkert van Verseveld and others
 
 This library provides simple, but easy support for combining the Simple Direct media Library (SDL) with Open Graphics Language (OpenGL).
 It aims to provide a similar API as the OpenGL Utility Toolkit (GLUT).
-There are plans to provide simple audio support and other backends than just SDL in a future release.
+There is also simple audio and TrueTypeFont support.
 
 ## Documentation
-At the moment, the library lacks easy-to-comprehend documentation in the included headers themselves.
+At the moment, the library lacks easy-to-comprehend documentation.
+You really need to have a good gasp about OpenGL in understand how this library works.
 For good pointers how to use the library we recommend to take a look at the demo folder and try to create some new demo's.
+See also DEMOS for a brief description about all demo examples.
 
 # Compilation
 The following tools are required:

@@ -39,7 +39,7 @@ void init(void) {
 	if (!gutAudioLoad(&demo.jump, "jumpland.wav"))
 		gutPanic("No audio", "Could not find jumpland.wav");
 	glGenTextures(1, &demo.tex);
-	if (!gutLoadTexture(&demo.tex, "vim.png"))
+	if (!gutLoadTexture(demo.tex, "vim.png"))
 		gutPanic("Missing resources", "Could not find vim.png");
 }
 

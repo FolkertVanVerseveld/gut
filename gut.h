@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 #include "sfx.h"
+#include "ttf.h"
 #include "tex.h"
 
 struct gutcore_t;

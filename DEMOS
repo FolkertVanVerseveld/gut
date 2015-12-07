@@ -1,0 +1,26 @@
+# Demo's
+There are multiple demo's that are simple examples that illustrate what this library can do.
+You can close the demo's with the escape key.
+Some demo's require you to run them in the directory where they are located as they will search for resources in the directory that the command is invoked.
+
+## Font
+Show how to render text using a true type font.
+Use 1,2,3 to toggle between rendering options.
+
+## Hello
+Just creates a window with a rotating zooming triangle.
+
+## Modes
+Illustrates windowed and fullscreen windowing modes: 'f' toggles between these two modes.
+
+## Msgbox
+Shows plain old text messages that may come in handy if you want to just ask the user between multiple options rather than writing an entire user interface.
+
+## SFX
+Drops a picture whenever you press the spacebar and plays a clip when the picture stops falling down.
+
+## Texture
+Draws a simple picture on the screen.
+
+## Triangle
+Uses a gradient to colorize a rotating triangle.

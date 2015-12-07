@@ -4,7 +4,7 @@ if hash colorgcc 2>/dev/null; then
 	CC=colorgcc
 fi
 CFLAGS="-Wall -Wextra -pedantic -std=gnu99 -fPIC -g $(pkg-config --cflags sdl2 gl) -I. -lSDL2_image -lSDL2_mixer -lm"
-LDLIBS="$(pkg-config --libs sdl2 gl) -lSDL2_image -lSDL2_mixer -lm"
+LDLIBS="$(pkg-config --libs sdl2 gl) -lSDL2_image -lSDL2_mixer -lSDL2_ttf -lm"
 
 cat <<EOF >Makefile
 .PHONY: default clean

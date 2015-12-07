@@ -64,6 +64,7 @@ bool gutAudioLoad(unsigned *index, const char *name) {
 	GutClip *clip = &gut.core->audio.list[p];
 	clip->cookie = blk;
 	clip->flags = CLIP_SFX | CLIP_LOADED;
+	*index = p;
 	good = true;
 err:
 	if (!good) {
@@ -72,7 +73,7 @@ err:
 	return good;
 }
 
-bool _gut_chksfx(GutClip **clip, unsigned index) {
+static bool _gut_chksfx(GutClip **clip, unsigned index) {
 	if (index > gut.core->audio.max)
 		return false;
 	*clip = &gut.core->audio.list[index];
